@@ -8,13 +8,13 @@
 
 **Needed Libraries:**
 
-..* tweepy
-..* json
-..* pika
-..* nltk (with the vader algorithm)
-..* numpy
-..* matplotlib
-..* pandas (possibly down the line)
+* tweepy
+* json
+* pika
+* nltk (with the vader algorithm)
+* numpy
+* matplotlib
+* pandas (possibly down the line)
 
 
 
