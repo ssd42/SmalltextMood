@@ -1,5 +1,5 @@
 # TweetMood
-##( Work in progress)
+## (Work in progress)
 ### Small Python3 program that streams tweets directly from twitter (based on provided keywords), uses sentiment analysis to see how positive/negative they are.
 
 ### And finally loads them live into a graph in order to keep track of what people are saying about a company/person
@@ -8,13 +8,13 @@
 
 **Needed Libraries:**
 
-..*tweepy
-..*json
-..*pika
-..*nltk (with the vader algorithm)
-..*numpy
-..*matplotlib
-..*pandas (possibly down the line)
+..* tweepy
+..* json
+..* pika
+..* nltk (with the vader algorithm)
+..* numpy
+..* matplotlib
+..* pandas (possibly down the line)
 
 
 
