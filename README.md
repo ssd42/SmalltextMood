@@ -21,7 +21,9 @@
 You will need to get your own twitter keys in order to stream the tweets
 
 ## You will need to install a message queueing server (I used rabbitmq)
+
 [Download erlang - neeeded for RabbitMQ](http://www.erlang.org/downloads)
+
 [RabbitMQ download page](https://www.rabbitmq.com/download.html)
 
 As of now run streamtweets to load the data into the message queueing
