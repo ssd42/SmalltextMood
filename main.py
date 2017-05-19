@@ -9,6 +9,8 @@ from numpy import mean
 import time
 import datetime
 
+from queue import Queue
+
 # ================GLOBALS===============
 
 queue_name = 'twitter_topic_feed'
@@ -70,9 +72,83 @@ def get_tweets(threadname):
 	
 	return tweet
 
+# function will be on single thread and load all the data into a single
+# queue that I will create pika doesn't allow thread
+# what I can do is put the sentiment analysis on multiple threads
+# reading from a thread safe queue that I create
+def load_worker():
 
-def stream_worker():
-	pass
+	start = time.time()
+
+	
+
+	tweet = ''
+
+	method_frame, properties, body = next(channel.consume(queue_name))
+
+	try:
+		encoded_line = body.decode('unicode_escape', 'ignore')
+		tweet = encoded_line.encode('utf8').decode('ascii', 'ignore') # small unicode errors rise without this
+
+	# here just to see what time of encoding raises an error so it can be fixed
+	except Exception as e:
+		with open('log.txt', 'a') as file:
+			file.write(body.decode('utf-8'))
+		print('Error at decoding: {}'.format(e))
+
+	# Acknowledge the message was recieved
+	channel.basic_ack(method_frame.delivery_tag)
+
+	''' This might be fixable if we load on a single thread and do the sentiment(heavier processor usage)
+	in a few other threads, as time time to load it into a queue is smaller then the sentiment time
+	'''
+
+
+	# Cancel the consumer and return any pending messages
+	# try:													# sort of useless pika doesn't support threading... look for a hack
+	# 	requeued_messages = channel.cancel()
+	# except IndexError as e:									# which is why this error is here
+	# 	print("Thread lock may have happened: {}".format(e))
+	
+	# print("Program took {} time to run".format(time.time()- start))
+
+	return tweet
+
+
+q = Queue(maxsize=6000)
+def queue_loader_worker():
+	print('Loading data into queue')
+	while True:
+		
+		if not q.full():
+			
+			q.put(load_worker()) # grad from the message queue server and get it ready to do sentiment analysis
+			# print('data now in queue')
+
+
+# here is will be ok to keep multiple threads, since Queue is threadsafe
+def sentiment_worker(thread_name):
+	print("Starting {}...".format(thread_name))
+	while True:
+		# print(q.empty())
+		if not q.empty():
+			data = q.get()
+			sentiment = nlp.get_sentimentVals(data)
+
+			if sentiment > 0:
+				pos_data_analysis.append(sentiment)
+
+			elif sentiment < 0:
+				neg_data_analysis.append(sentiment)
+
+def check_q():
+	while True:
+		global q
+		if q.empty(): print('Queue is empty')
+		elif q.full(): print('Queue is full')
+		time.sleep(1)
+
+
 
 
 def livegraph():
@@ -86,13 +162,10 @@ def nlp_worker():
 
 	worker_num = 'Thread 1'
 
-	sentiment = nlp.get_sentimentVals(get_tweets(worker_num))
+	while True:
+		sentiment = nlp.get_sentimentVals(get_tweets(worker_num))
 
-	if sentiment > 0:
-		pos_data_analysis.append(sentiment)
-
-	elif nlp.get_sentimentVals(get_tweets(worker_num)) < 0:
-		neg_data_analysis.append(sentiment)
+		
 
 def main():
 
@@ -104,14 +177,33 @@ def main():
 	# t2.start()
 
 
+	# q_worker = Thread(target=nlp_worker)
+	q_loader_worker = Thread(target=queue_loader_worker)
+	q_checker = Thread(target=check_q)
+
+
+	threads = [q_loader_worker, q_checker]
+
+	for i in range(2):
+		threads.append(Thread(target=sentiment_worker, args=('Sentiment worker #{} starting...'.format(i+1),)))
+
+	for thread in threads:
+		thread.daemon = True
+		thread.start()
+
+
+	# now instead of this crazy loop make it update ever few minutes and put it on the graph
+
 	while True:
 		# nlp.get_sentimentVals(get_tweets('Thread1'))
-		nlp_worker('Thread 1')
+		# nlp_worker('Thread 1')
 		if datetime.datetime.now().second == 0 or datetime.datetime.now().second == 30:
 			global pos_data_analysis, neg_data_analysis
-			print('pos mean: {}'.format(mean(pos_data_analysis)))
-			print('neg mean: {}'.format(mean(neg_data_analysis)))
-			print('========================')
+
+			print('==========================')
+			print('pos mean: {} with count {}'.format(mean(pos_data_analysis), len(pos_data_analysis)))
+			print('neg mean: {} with count {}'.format(mean(neg_data_analysis), len(neg_data_analysis)))
+			print('==========================')
 			pos_data_analysis = []
 			neg_data_analysis = []
 			time.sleep(1)
