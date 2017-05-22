@@ -77,6 +77,11 @@ def _login():
 
 	return auth,api
 
+def remove_link():
+	# use regex to look if the text has a link and remove it since it give sentiment analysis a harder time
+	pass
+
+
 
 # THIS MIGHT NOT BE NEEDED SINCE I CAN JUST UPDATE THE QUEUE
 def init_stream(key_str):
@@ -87,14 +92,29 @@ def init_stream(key_str):
 	stream.filter(track=key_lst)
 
 
+
+def parse_keywords():
+	preset = 'Tesla'
+	try:
+		# load keywords
+		argz = sys.argv[1:]
+		#break the 'underscore' so you can pass compund words
+		keywords = list(map(lambda x: x.replace('_', ' '), argz))
+		init_stream(keywords)
+	except IndexError:
+		init_stream(preset)
+
+
+
 preset = 'Tesla'
 
 def main():
-	try:
-		argz = sys.argv[1:]
-		init_stream(argz)
-	except IndexError:
-		init_stream(preset)
+	# try:
+	# 	argz = sys.argv[1:]
+	# 	init_stream(argz)
+	# except IndexError:
+	# 	init_stream(preset)
+	parse_keywords()
 
 if __name__ == '__main__':
 	main()

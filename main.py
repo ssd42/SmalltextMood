@@ -15,6 +15,7 @@ from queue import Queue
 
 queue_name = 'twitter_topic_feed'
 
+DEBUG = False
 # ======================================
 
 
@@ -31,6 +32,13 @@ channel = connection.channel()
 # meant to  be run on a single thread
 def stream(key_list):
 	streamtweets.init_stream(key_list)
+
+# printer debugger
+def dPrint(input_str):
+	global DEBUG
+	if DEBUG:
+		print("DEBUG PRING: {}".format(input_str))
+
 
 
 def load():
@@ -117,13 +125,30 @@ def load_worker():
 
 q = Queue(maxsize=6000)
 def queue_loader_worker():
-	print('Loading data into queue')
+	print('Thread starting loading data into queue...')
 	while True:
 		
 		if not q.full():
 			
 			q.put(load_worker()) # grad from the message queue server and get it ready to do sentiment analysis
 			# print('data now in queue')
+
+
+# temporary and for the purpose of debugging
+def mean_sentiment_worker():
+	print('Thread starting waiting for right time...')
+	while True:
+		if datetime.datetime.now().second == 0 or datetime.datetime.now().second == 30:
+			global pos_data_analysis, neg_data_analysis
+
+			print('==========================')
+			print('pos mean: {} with count {}'.format(mean(pos_data_analysis), len(pos_data_analysis)))
+			print('neg mean: {} with count {}'.format(mean(neg_data_analysis), len(neg_data_analysis)))
+			print('==========================')
+			pos_data_analysis = []
+			neg_data_analysis = []
+			time.sleep(1)
+
 
 
 # here is will be ok to keep multiple threads, since Queue is threadsafe
@@ -144,8 +169,8 @@ def sentiment_worker(thread_name):
 def check_q():
 	while True:
 		global q
-		if q.empty(): print('Queue is empty')
-		elif q.full(): print('Queue is full')
+		if q.empty(): dPrint('Queue is empty')
+		elif q.full(): dPrint('Queue is full')
 		time.sleep(1)
 
 
@@ -165,7 +190,10 @@ def nlp_worker():
 	while True:
 		sentiment = nlp.get_sentimentVals(get_tweets(worker_num))
 
-		
+
+def animate():
+	global pos_data_analysis, neg_data_analysis
+
 
 def main():
 
@@ -177,15 +205,23 @@ def main():
 	# t2.start()
 
 
+	# This section turns loads the threads functions
+
 	# q_worker = Thread(target=nlp_worker)
 	q_loader_worker = Thread(target=queue_loader_worker)
 	q_checker = Thread(target=check_q)
+	mean_print = Thread(target=mean_sentiment_worker)
 
 
-	threads = [q_loader_worker, q_checker]
+	# add a thread that checks the time adds the data to a 
+
+
+	threads = [q_loader_worker, q_checker, mean_print]
 
 	for i in range(2):
 		threads.append(Thread(target=sentiment_worker, args=('Sentiment worker #{} starting...'.format(i+1),)))
+
+	# daemon makes sure that each thread stops if and when the main thread stops
 
 	for thread in threads:
 		thread.daemon = True
@@ -195,19 +231,7 @@ def main():
 	# now instead of this crazy loop make it update ever few minutes and put it on the graph
 
 	while True:
-		# nlp.get_sentimentVals(get_tweets('Thread1'))
-		# nlp_worker('Thread 1')
-		if datetime.datetime.now().second == 0 or datetime.datetime.now().second == 30:
-			global pos_data_analysis, neg_data_analysis
-
-			print('==========================')
-			print('pos mean: {} with count {}'.format(mean(pos_data_analysis), len(pos_data_analysis)))
-			print('neg mean: {} with count {}'.format(mean(neg_data_analysis), len(neg_data_analysis)))
-			print('==========================')
-			pos_data_analysis = []
-			neg_data_analysis = []
-			time.sleep(1)
-		
+		time.sleep(1)
 
 
 
