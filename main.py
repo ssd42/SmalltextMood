@@ -11,6 +11,11 @@ import datetime
 
 from queue import Queue
 
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from matplotlib import style
+
+
 # ================GLOBALS===============
 
 queue_name = 'twitter_topic_feed'
@@ -23,9 +28,54 @@ DEBUG = False
 pos_data_analysis = []
 neg_data_analysis = []
 
+pos_mean = []
+neg_mean = []
+
+
+# establishing the pika connection to the server
 
 connection = pika.BlockingConnection()
 channel = connection.channel()
+
+
+
+# =======================================================
+# Animation code make own file later
+
+style.use('fivethirtyeight')
+fig = plt.figure()
+ax1 = fig.add_subplot(1,1,1)
+
+ax1.set_ylim(ymin=0)
+# ax1.xaxis.set_data_interval(0, 10)
+# ax1.yaxis.set_data_interval(0, 1)
+
+def animate(i):
+	print(datetime.datetime.now())
+	if datetime.datetime.now().second in (0,15,30,45):
+		print(datetime.datetime.now())
+		global ax1
+		global pos_mean, neg_mean
+
+		print(pos_mean)
+
+		graph_data = pos_mean
+		xs = []
+		ys = []
+		for num, item in enumerate(graph_data):
+			xs.append(num)
+			ys.append(item)
+
+		ax1.clear()
+		ax1.plot(xs, ys)
+
+
+
+
+# =======================================================
+
+
+
 
 # function initializes the twitter stream
 # following a set of key words
@@ -39,10 +89,6 @@ def dPrint(input_str):
 	if DEBUG:
 		print("DEBUG PRING: {}".format(input_str))
 
-
-
-def load():
-	pass
 
 
 #function to get X messages from the queue
@@ -86,7 +132,7 @@ def get_tweets(threadname):
 # reading from a thread safe queue that I create
 def load_worker():
 
-	start = time.time()
+	# start = time.time()
 
 	
 
@@ -150,10 +196,24 @@ def mean_sentiment_worker():
 			time.sleep(1)
 
 
+def mean_into_lst():
+	print('Loading means into lists')
+	while True:
+		if datetime.datetime.now().second == 58 or datetime.datetime.now().second == 28:
+			global pos_mean, neg_mean, pos_data_analysis, neg_data_analysis
+
+			pos_mean.append(mean(pos_data_analysis))
+			neg_mean.append(mean(neg_data_analysis))
+			pos_data_analysis = []
+			neg_data_analysis = []
+		
+		time.sleep(1) # so it wont repeat more than once on each interval
+
+
 
 # here is will be ok to keep multiple threads, since Queue is threadsafe
 def sentiment_worker(thread_name):
-	print("Starting {}...".format(thread_name))
+	print("Thread {}...".format(thread_name))
 	while True:
 		# print(q.empty())
 		if not q.empty():
@@ -167,7 +227,7 @@ def sentiment_worker(thread_name):
 				neg_data_analysis.append(sentiment)
 
 def check_q():
-	while True:
+	while DEBUG:
 		global q
 		if q.empty(): dPrint('Queue is empty')
 		elif q.full(): dPrint('Queue is full')
@@ -176,42 +236,16 @@ def check_q():
 
 
 
-def livegraph():
-	pass
-
-
-def nlp_worker():
-
-	#ignore the neutral since most are facts and news
-	#remember to add them to the total later down the road
-
-	worker_num = 'Thread 1'
-
-	while True:
-		sentiment = nlp.get_sentimentVals(get_tweets(worker_num))
-
-
-def animate():
-	global pos_data_analysis, neg_data_analysis
-
 
 def main():
-
-	# t1 = Thread(target=nlp_worker)
-	# t2 = Thread(target=nlp_worker)
-	# t1.daemon = True
-	# t2.daemon = True
-	# t1.start()
-	# t2.start()
-
 
 	# This section turns loads the threads functions
 
 	# q_worker = Thread(target=nlp_worker)
 	q_loader_worker = Thread(target=queue_loader_worker)
 	q_checker = Thread(target=check_q)
-	mean_print = Thread(target=mean_sentiment_worker)
-
+	# mean_print = Thread(target=mean_sentiment_worker)
+	mean_print = Thread(target=mean_into_lst)
 
 	# add a thread that checks the time adds the data to a 
 
@@ -230,8 +264,14 @@ def main():
 
 	# now instead of this crazy loop make it update ever few minutes and put it on the graph
 
-	while True:
-		time.sleep(1)
+
+
+	ani = animation.FuncAnimation(fig, animate, interval=1000)
+	plt.show()
+
+
+	# while True:
+	# 	time.sleep(1)
 
 
 
