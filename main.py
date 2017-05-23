@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib import style
 
+import matplotlib.dates as mdates
+import matplotlib.ticker as mticker
 
 # ================GLOBALS===============
 
@@ -36,50 +38,156 @@ connection = pika.BlockingConnection()
 channel = connection.channel()
 # =======================================================
 # Animation code make own file later
-style.use('fivethirtyeight')
-fig = plt.figure()
-ax1 = fig.add_subplot(1,1,1)
 
+
+# new test code
+
+
+# ax1 = plt.subplot2grid((6,1), (0,0), rowspan=3, colspan=1)
+# plt.title("Pos/Neg Sentiment")
+# ax2 = plt.subplot2grid((6,1), (3,0), rowspan=3, colspan=1)
+# plt.xlabel('Date')
+# plt.ylabel('Sentiment')
+
+
+# ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+# ax2.xaxis.set_major_locator(mticker.MaxNLocator(10))
+# ax2.grid(True)
+
+
+
+
+
+# style.use('fivethirtyeight')
+# fig = plt.figure()
+# ax1 = fig.add_subplot(2,1,1)
+# ax2 = fig.add_subplot(2,1,2)
+
+# plt.title("Pos/Neg Feeling based on tweet\'s")
 # ax1.xaxis.set_data_interval(0, 10)
 # ax1.yaxis.set_data_interval(0, 1)
 first = True
 max_size = 20
+
+
+def graph_data():
+	global pos_mean, neg_mean, max_size
+
+	pos_graph_data = pos_mean[(-1*max_size):]
+	neg_graph_data = neg_mean[(-1*max_size):]
+
+	pxs = []
+	pys = []
+	for num, item in enumerate(pos_graph_data):
+		pxs.append(num+1)
+		pys.append(item)
+
+
+	nxs = []
+	nys = []
+
+	for num, item in enumerate(neg_graph_data):
+		nxs.append(num+1)
+		nys.append(item)
+
+	#clear the figure for new draw
+	fig.clf()
+
+	#set values
+	style.use('fivethirtyeight')
+	plt.locator_params(axis='x', nticks=1)
+
+	ax1 = plt.subplot2grid((2,1),(0,0), rowspan=1, colspan=1)
+
+	plt.title("Sentiment Analysis")
+	plt.axis([0.0,max_size, 0.0,1.0])
+	plt.ylabel('Pos')
+	
+	ax1.plot(pxs, pys, color='green')
+
+	ax2 = plt.subplot2grid((2,1),(1,0), rowspan=1, colspan=1, sharex=ax1)
+
+	plt.axis([0.0,max_size, 0.0,-1.0])
+	plt.xlabel('Date')
+	plt.ylabel('Neg')
+
+	# ax2.set_xticklabels(timestamps)
+
+	plt.subplots_adjust(bottom=0.2)
+	plt.xticks(rotation=25)
+
+	# ax=plt.gca()
+	# xfmt = 
+	# ax2.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M:%S'))
+	
+	
+	ax2.plot(nxs, nys, color='red')
+
+
+
+fig = plt.figure()
+fig.suptitle('Waiting on initial data', fontsize=30, fontweight='bold')
 def animate(i):
 	if datetime.datetime.now().second in (0,30):
-		dPrint(datetime.datetime.now())
-		global first
-		global ax1
-		global pos_mean, neg_mean
+		graph_data()
 
 
-		print(pos_mean)
 
-		#grab the last n items from the list and plot them (plotting for iregularities) can save later to db alll of them
-		graph_data = pos_mean[(-1*max_size):]
 
-		xs = []
-		ys = []
-		if first:
-			xs.append(0)
-			ys.append(0)
-			first = False
 
-		for num, item in enumerate(graph_data):
-			xs.append(num+1)
-			ys.append(item)
 
-		ax1.clear()
 
-		# plt.axis()
-		plt.axis([0.0,max_size, 0.0,1.0])
-		
-		# ax1.yaxis.set_data_interval(0, 1)
 
-		ax = plt.gca()
-		ax.set_autoscale_on(False)
-		ax1.plot(xs, ys)
 
 # =======================================================
+
+
+#===================================
+# def animate_old(i):
+# 	if datetime.datetime.now().second in (0,30):
+# 		dPrint(datetime.datetime.now())
+# 		global first
+# 		global ax1
+# 		global pos_mean, neg_mean
+
+
+# 		print(pos_mean)
+
+# 		#grab the last n items from the list and plot them (plotting for iregularities) can save later to db alll of them
+# 		pos_graph_data = pos_mean[(-1*max_size):]
+
+# 		xs = []
+# 		ys = []
+# 		if first:
+# 			xs.append(0)
+# 			ys.append(0)
+# 			first = False
+
+# 		for num, item in enumerate(pos_graph_data):
+# 			xs.append(num+1)
+# 			ys.append(item)
+
+# 		ax1.clear()
+# 		# ax2.clear()
+# 		# plt.axis()
+# 		# plt.axis([0.0,max_size, 0.0,1.0])
+		
+
+# 		# ax1.xaxis.set_data_interval(0, 10)
+# 		# ax1.yaxis.set_data_interval(0, 1)
+
+# 		plt.subplots_adjust(left=0.11, bottom=0.24, right=0.90, top=0.90, wspace=0.2, hspace=0)
+
+# 		ax = plt.gca()
+# 		ax.set_autoscale_on(False)
+# 		ax1.plot(xs, ys)
+# 		# ax2.plot(xs, ys)
+#========================================================
+
+
+
+
+
 
 
 # function initializes the twitter stream
