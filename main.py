@@ -64,8 +64,6 @@ def animate(i):
 			ys.append(0)
 			first = False
 
-
-
 		for num, item in enumerate(graph_data):
 			xs.append(num+1)
 			ys.append(item)
@@ -79,9 +77,6 @@ def animate(i):
 
 		ax = plt.gca()
 		ax.set_autoscale_on(False)
-
-
-
 		ax1.plot(xs, ys)
 
 # =======================================================

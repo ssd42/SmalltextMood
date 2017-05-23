@@ -29,10 +29,3 @@ def get_sentimentVals(text):
 	# available are compound/pos/neu/neg
 	# get compound
 	return ss['compound']
-
-def mean(alist):
-	mean_val = 0
-	for val in alist:
-		mean_val+=val
-	return abs(mean_val/len(alist))
-	
