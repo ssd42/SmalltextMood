@@ -2,18 +2,22 @@
 from threading import Thread
 import pika
 import dataAnalysis as nlp
-from numpy import mean
 import time
 import datetime
 
 from queue import Queue
 
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 from matplotlib import style
 
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+import matplotlib.patches as mpatches
 import matplotlib.dates as mdates
 import matplotlib.ticker as mticker
+
+import numpy as np
+from numpy import mean
+
 
 # ================GLOBALS===============
 
@@ -26,6 +30,12 @@ neg_data_analysis = []
 
 pos_mean = []
 neg_mean = []
+
+temp_count = 0 #this is to include the nuetral tweets
+total_count = []
+total_count_mean = []
+
+timestamps = []
 # ======================================
 # printer debugger
 def dPrint(input_str):
@@ -71,23 +81,36 @@ max_size = 20
 
 
 def graph_data():
-	global pos_mean, neg_mean, max_size
+	global pos_mean, neg_mean, total_count, total_count_mean
+	global max_size
+
+	# FOR THE SENTIMENT GRAPHS
+
+	# LINE to get the past n items out of the list mean
+	# this is cause later after the program closes the data is to be saved
+	# may want to do something with that data later down the line
 
 	pos_graph_data = pos_mean[(-1*max_size):]
 	neg_graph_data = neg_mean[(-1*max_size):]
+	t_count = total_count[(-1*max_size):]
+	t_count_mean = total_count_mean[(-1*max_size):]
 
+
+	tstamps = timestamps[(-1*max_size):]
+
+	# load in the data for the pos graph
 	pxs = []
 	pys = []
 	for num, item in enumerate(pos_graph_data):
-		pxs.append(num+1)
+		pxs.append(num)
 		pys.append(item)
 
-
+	# data for neg graph
 	nxs = []
 	nys = []
 
 	for num, item in enumerate(neg_graph_data):
-		nxs.append(num+1)
+		nxs.append(num)
 		nys.append(item)
 
 	#clear the figure for new draw
@@ -97,18 +120,23 @@ def graph_data():
 	style.use('fivethirtyeight')
 	plt.locator_params(axis='x', nticks=1)
 
-	ax1 = plt.subplot2grid((2,1),(0,0), rowspan=1, colspan=1)
+	# pos grid
+	ax1 = plt.subplot2grid((3,1),(0,0), rowspan=1, colspan=1)
 
 	plt.title("Sentiment Analysis")
 	plt.axis([0.0,max_size, 0.0,1.0])
 	plt.ylabel('Pos')
 	
-	ax1.plot(pxs, pys, color='green')
+	plt.xticks(pxs, " ") # shared by both ax1 & ax2
+	
+	
 
-	ax2 = plt.subplot2grid((2,1),(1,0), rowspan=1, colspan=1, sharex=ax1)
+
+	# neg grid
+	ax2 = plt.subplot2grid((3,1),(1,0), rowspan=1, colspan=1, sharex=ax1)
 
 	plt.axis([0.0,max_size, 0.0,-1.0])
-	plt.xlabel('Date')
+	# plt.xlabel('Date') #not needed for now
 	plt.ylabel('Neg')
 
 	# ax2.set_xticklabels(timestamps)
@@ -116,15 +144,67 @@ def graph_data():
 	plt.subplots_adjust(bottom=0.2)
 	plt.xticks(rotation=25)
 
+
 	# ax=plt.gca()
 	# xfmt = 
 	# ax2.xaxis.set_major_formatter(md.DateFormatter('%Y-%m-%d %H:%M:%S'))
 	
-	
-	ax2.plot(nxs, nys, color='red')
+
+	# bargraph grid for sample data size
+	ax3 = plt.subplot2grid((3,1), (2,0), rowspan=1, colspan=1)
+
+
+	plt.xlabel('Time \n\nStandard Deviation = {0:.2f}'.format(np.std(total_count, ddof=1)))
+
+
+	plt.ylabel('Total Tweets ')
+
+	plt.subplots_adjust(bottom=0.2)
+	plt.xticks(rotation=25)
+
+	# plt.xticks(np.arange(0, 20, 1.0), rowspan=25)
+
+	# small hardfix for the plot range (want to keep 0 a min)
+	if len(total_count) > 0:
+		plt.axis([0.0, max_size, min(total_count)*0.8, max(total_count)*1.1]) #	multiplication is to set a floor and ceiling	
+	else:
+		plt.axis([0.0, max_size, 0.0, 10])
+
+
+	ax3.set_xticklabels(tstamps) #timestamps setting
+
+	# this is for plotting the date later on
+	loc = mticker.MultipleLocator(base=1.0) # this locator puts ticks at regular intervals of 1 (for timestamps)
+	ax2.xaxis.set_major_locator(loc)
+	ax3.xaxis.set_major_locator(loc)
+
+
+	# legend
+	# green_patch = mpatches.Patch(color='green', label='Pos Ratio')
+	# red_patch = mpatches.Patch(color='red', label='Neg Ratio')
+	# black_patch = mpatches.Patch(color='black', label='Tweet Count')
+	# orange_patch = mpatches.Patch(color='orange', label='Mean Count')
+	# plt.legend(handles=[green_patch,red_patch, black_patch, orange_patch])
 
 
 
+
+
+	ax1.plot(pxs, pys, color='green', label='pos ratio')
+	ax2.plot(nxs, nys, color='red', label='neg ratio')
+	ax3.plot(nxs, t_count, color='black', label='tweet count')
+	ax3.plot(nxs, t_count_mean, color='orange', label='tweet mean')
+
+
+	# plt.legend(bbox_to_anchor=[0.5,0.5], loc='bottom left', ncol=1, mode="expand", borderaxespad=0.) #legend setter
+	ax1.legend(loc='upper left',  fontsize='small')
+	ax2.legend(loc='upper left', fontsize='small')
+	ax3.legend(loc='upper left', fontsize='small')
+
+
+
+# setting up the pre-screen before we starting plotting the data 
+# giving it time to load up enough live data
 fig = plt.figure()
 fig.suptitle('Waiting on initial data', fontsize=30, fontweight='bold')
 def animate(i):
@@ -298,11 +378,27 @@ def mean_into_lst():
 	while True:
 		if datetime.datetime.now().second == 58 or datetime.datetime.now().second == 28:
 			global pos_mean, neg_mean, pos_data_analysis, neg_data_analysis
+			global temp_count, total_count, total_count_mean
+			global timestamps
 
-			pos_mean.append(mean(pos_data_analysis))
-			neg_mean.append(mean(neg_data_analysis))
+			pmean = mean(pos_data_analysis)
+			nmean = mean(neg_data_analysis)
+
+			pos_mean.append(pmean)
+			neg_mean.append(nmean)
+			total_count.append(temp_count)
+			total_count_mean.append(mean(total_count))
+
+			timestamps.append(time.strftime("%H:%M:%S", time.localtime())) #gets timestamps at the moment
+
+			# print("Standard deviation: {}".format(np.std(total_count, ddof=1)))
+			print("tempcount: {};\nposcount: {}, with sentiment: {};\nnegcount: {}, with sentiment: {}\n".format(temp_count,
+															len(pos_data_analysis), pmean, len(neg_data_analysis), nmean))
+
+			#resets
 			pos_data_analysis = []
 			neg_data_analysis = []
+			temp_count = 0
 		
 		time.sleep(1) # so it wont repeat more than once on each interval
 
@@ -310,6 +406,7 @@ def mean_into_lst():
 # here is will be ok to keep multiple threads, since Queue is threadsafe
 def sentiment_worker(thread_name):
 	print("Thread {}...".format(thread_name))
+	global temp_count
 	while True:
 		# print(q.empty())
 		if not q.empty():
@@ -321,8 +418,10 @@ def sentiment_worker(thread_name):
 			elif sentiment < 0:
 				neg_data_analysis.append(sentiment)
 
+			temp_count+=1
 
-def check_q():
+
+def check_q(): 
 	while DEBUG:
 		global q
 		if q.empty(): dPrint('Queue is empty')
@@ -338,10 +437,9 @@ def main():
 	q_loader_worker = Thread(target=queue_loader_worker)
 	q_checker = Thread(target=check_q)
 	# mean_print = Thread(target=mean_sentiment_worker)
-	mean_print = Thread(target=mean_into_lst)
-
+	mean2list = Thread(target=mean_into_lst)
 	# add a thread that checks the time adds the data to a 
-	threads = [q_loader_worker, q_checker, mean_print]
+	threads = [q_loader_worker, q_checker, mean2list]
 
 	for i in range(2):
 		threads.append(Thread(target=sentiment_worker, args=('Sentiment worker #{} starting...'.format(i+1),)))
@@ -351,7 +449,7 @@ def main():
 		thread.daemon = True
 		thread.start()
 
-	ani = animation.FuncAnimation(fig, animate, interval=1000)
+	ani = animation.FuncAnimation(fig, animate, interval=900)
 	plt.show()
 
 
