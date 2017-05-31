@@ -1,4 +1,3 @@
-# import json
 from threading import Thread
 import pika
 import dataAnalysis as nlp
@@ -47,35 +46,7 @@ def dPrint(input_str):
 connection = pika.BlockingConnection()
 channel = connection.channel()
 # =======================================================
-# Animation code make own file later
 
-
-# new test code
-
-
-# ax1 = plt.subplot2grid((6,1), (0,0), rowspan=3, colspan=1)
-# plt.title("Pos/Neg Sentiment")
-# ax2 = plt.subplot2grid((6,1), (3,0), rowspan=3, colspan=1)
-# plt.xlabel('Date')
-# plt.ylabel('Sentiment')
-
-
-# ax2.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-# ax2.xaxis.set_major_locator(mticker.MaxNLocator(10))
-# ax2.grid(True)
-
-
-
-
-
-# style.use('fivethirtyeight')
-# fig = plt.figure()
-# ax1 = fig.add_subplot(2,1,1)
-# ax2 = fig.add_subplot(2,1,2)
-
-# plt.title("Pos/Neg Feeling based on tweet\'s")
-# ax1.xaxis.set_data_interval(0, 10)
-# ax1.yaxis.set_data_interval(0, 1)
 first = True
 max_size = 20
 
@@ -84,19 +55,20 @@ def graph_data():
 	global pos_mean, neg_mean, total_count, total_count_mean
 	global max_size
 
-	# FOR THE SENTIMENT GRAPHS
+	# ==========================================
+	# Data creation and loading
+	# ==========================================
 
 	# LINE to get the past n items out of the list mean
-	# this is cause later after the program closes the data is to be saved
-	# may want to do something with that data later down the line
 
 	pos_graph_data = pos_mean[(-1*max_size):]
 	neg_graph_data = neg_mean[(-1*max_size):]
 	t_count = total_count[(-1*max_size):]
 	t_count_mean = total_count_mean[(-1*max_size):]
 
-
 	tstamps = timestamps[(-1*max_size):]
+
+	std_val = np.std(total_count, ddof=1)
 
 	# load in the data for the pos graph
 	pxs = []
@@ -112,6 +84,24 @@ def graph_data():
 	for num, item in enumerate(neg_graph_data):
 		nxs.append(num)
 		nys.append(item)
+
+	# ====================================================
+	#	Alerts
+	# ====================================================
+
+	''' given the std deviation look for an extreem outlier 
+	of the given data and if data deviates from for N time (suggestion of 2 mins)
+	throw an alert. Now keep this focused on the data from the sheer amount of tweets 
+	since as of now the change in sentiment has never deviated anything crazy (I also
+	havent been monitoring it non stop)
+	'''
+
+
+
+
+	# ====================================================
+	#	Graphing
+	# ====================================================	
 
 	#clear the figure for new draw
 	fig.clf()
@@ -154,11 +144,8 @@ def graph_data():
 	ax3 = plt.subplot2grid((3,1), (2,0), rowspan=1, colspan=1)
 
 
-	plt.xlabel('Time \n\nStandard Deviation = {0:.2f}'.format(np.std(total_count, ddof=1)))
-
-
+	plt.xlabel('Time \n\nStandard Deviation = {0:.2f}'.format(std_val))
 	plt.ylabel('Total Tweets ')
-
 	plt.subplots_adjust(bottom=0.2)
 	plt.xticks(rotation=25)
 
@@ -179,17 +166,7 @@ def graph_data():
 	ax3.xaxis.set_major_locator(loc)
 
 
-	# legend
-	# green_patch = mpatches.Patch(color='green', label='Pos Ratio')
-	# red_patch = mpatches.Patch(color='red', label='Neg Ratio')
-	# black_patch = mpatches.Patch(color='black', label='Tweet Count')
-	# orange_patch = mpatches.Patch(color='orange', label='Mean Count')
-	# plt.legend(handles=[green_patch,red_patch, black_patch, orange_patch])
-
-
-
-
-
+	# legends
 	ax1.plot(pxs, pys, color='green', label='pos ratio')
 	ax2.plot(nxs, nys, color='red', label='neg ratio')
 	ax3.plot(nxs, t_count, color='black', label='tweet count')
@@ -197,82 +174,27 @@ def graph_data():
 
 
 	# plt.legend(bbox_to_anchor=[0.5,0.5], loc='bottom left', ncol=1, mode="expand", borderaxespad=0.) #legend setter
-	ax1.legend(loc='upper left',  fontsize='small')
+	ax1.legend(loc='upper left', fontsize='small')
 	ax2.legend(loc='upper left', fontsize='small')
 	ax3.legend(loc='upper left', fontsize='small')
 
 
 
-# setting up the pre-screen before we starting plotting the data 
-# giving it time to load up enough live data
+# setting up the pre-screen before first batch of data pours in
 fig = plt.figure()
 fig.suptitle('Waiting on initial data', fontsize=30, fontweight='bold')
+# FUNCAnimation
 def animate(i):
 	if datetime.datetime.now().second in (0,30):
 		graph_data()
 
-
-
-
-
-
-
-
-
 # =======================================================
 
 
-#===================================
-# def animate_old(i):
-# 	if datetime.datetime.now().second in (0,30):
-# 		dPrint(datetime.datetime.now())
-# 		global first
-# 		global ax1
-# 		global pos_mean, neg_mean
-
-
-# 		print(pos_mean)
-
-# 		#grab the last n items from the list and plot them (plotting for iregularities) can save later to db alll of them
-# 		pos_graph_data = pos_mean[(-1*max_size):]
-
-# 		xs = []
-# 		ys = []
-# 		if first:
-# 			xs.append(0)
-# 			ys.append(0)
-# 			first = False
-
-# 		for num, item in enumerate(pos_graph_data):
-# 			xs.append(num+1)
-# 			ys.append(item)
-
-# 		ax1.clear()
-# 		# ax2.clear()
-# 		# plt.axis()
-# 		# plt.axis([0.0,max_size, 0.0,1.0])
-		
-
-# 		# ax1.xaxis.set_data_interval(0, 10)
-# 		# ax1.yaxis.set_data_interval(0, 1)
-
-# 		plt.subplots_adjust(left=0.11, bottom=0.24, right=0.90, top=0.90, wspace=0.2, hspace=0)
-
-# 		ax = plt.gca()
-# 		ax.set_autoscale_on(False)
-# 		ax1.plot(xs, ys)
-# 		# ax2.plot(xs, ys)
-#========================================================
 
 
 
-
-
-
-
-# function initializes the twitter stream
-# following a set of key words
-# meant to  be run on a single thread
+# single thread streaming init
 def stream(key_list):
 	streamtweets.init_stream(key_list)
 
@@ -376,7 +298,7 @@ def mean_sentiment_worker():
 def mean_into_lst():
 	print('Loading means into lists')
 	while True:
-		if datetime.datetime.now().second == 58 or datetime.datetime.now().second == 28:
+		if datetime.datetime.now().second == 58 or datetime.datetime.now().second == 28: #NOTE: not sure of this as is... i understand the extra time but might be a better way
 			global pos_mean, neg_mean, pos_data_analysis, neg_data_analysis
 			global temp_count, total_count, total_count_mean
 			global timestamps

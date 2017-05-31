@@ -2,12 +2,12 @@ import sys
 import tweepy
 import json
 import time
+import re
 
 import streamKeys as sk # contains the api keys
 
 # what makes RabbitMQ stick together and work
 import pika
-
 
 #global queue name
 queue_name = 'twitter_topic_feed'
@@ -19,7 +19,7 @@ secret = sk.secret
 access_token = sk.access_token
 a_token_secret = sk.a_token_secret
 
-
+# class that will stream the chosen data into rabbit mqq
 class CustomStreamListener(tweepy.StreamListener):
 	def __init__(self, api):
 		self.api = api
@@ -43,7 +43,7 @@ class CustomStreamListener(tweepy.StreamListener):
 		# and it feels redundant to queue it if it will be dumped later
 		if status.lang == 'en':
 
-			# try to come back to this since it feels it could be better optimized
+			# this will be more usfull down the line leave it as of now
 
 			data = {}
 			data['text'] = status.text.replace('\n', ' ').replace('\r', ' ')
@@ -51,12 +51,11 @@ class CustomStreamListener(tweepy.StreamListener):
 			data['geo'] = status.geo
 			data['source'] = status.source
 
-			#checking if this works
-			temp = status.text
+			# send just the text since it's the only indicator needed
+			single_line = clean_data(status.text)
 
-
-			#queue the tweet
-			self.channel.basic_publish(exchange='', routing_key=queue_name, body=temp)
+			# queue the tweet (can use a dic[will be json] instead of a single line)
+			self.channel.basic_publish(exchange='', routing_key=queue_name, body=single_line)
 
 
 	def on_error(self, status_code):
@@ -77,10 +76,18 @@ def _login():
 
 	return auth,api
 
-def remove_link():
-	# use regex to look if the text has a link and remove it since it give sentiment analysis a harder time
-	pass
+#cleaning the data to make the line smaller and NLP more efficient
+def clean_data(line):
+	# remove urls 
+	new_line = re.sub(r"http\S+", "", line)
 
+	# get rid of the RT indication of retweets. Nlp efficiency
+	# not sure if it's slang for something so just removing the first one
+	# therefore no regex
+	if new_line[:3] == 'RT ':
+		new_line = new_line[3:]
+
+	return new_line
 
 
 # THIS MIGHT NOT BE NEEDED SINCE I CAN JUST UPDATE THE QUEUE
@@ -90,7 +97,6 @@ def init_stream(key_str):
 	stream = tweepy.Stream(w_auth, listener) # UPDATE LATER
 	key_lst = list(key_str)
 	stream.filter(track=key_lst)
-
 
 
 def parse_keywords():
@@ -105,15 +111,9 @@ def parse_keywords():
 		init_stream(preset)
 
 
-
 preset = 'Tesla'
 
 def main():
-	# try:
-	# 	argz = sys.argv[1:]
-	# 	init_stream(argz)
-	# except IndexError:
-	# 	init_stream(preset)
 	parse_keywords()
 
 if __name__ == '__main__':
