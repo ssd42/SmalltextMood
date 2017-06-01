@@ -3,11 +3,11 @@ import pika
 import dataAnalysis as nlp
 import time
 import datetime
+import sys
 
 from queue import Queue
 
 from matplotlib import style
-
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.patches as mpatches
@@ -17,6 +17,7 @@ import matplotlib.ticker as mticker
 import numpy as np
 from numpy import mean
 
+import streamtweets
 
 # ================GLOBALS===============
 
@@ -55,6 +56,8 @@ def graph_data():
 	global pos_mean, neg_mean, total_count, total_count_mean
 	global max_size
 
+	# print("Total count list: {}\n timestamps list: {}".format(total_count, timestamps))
+
 	# ==========================================
 	# Data creation and loading
 	# ==========================================
@@ -68,7 +71,12 @@ def graph_data():
 
 	tstamps = timestamps[(-1*max_size):]
 
-	std_val = np.std(total_count, ddof=1)
+	# first check to avoid numpy error
+	std_val = 0
+	if len(total_count)>0:
+		std_val = np.std(total_count, ddof=1)
+
+	# print("Total count list: {}\n timestamps list: {}".format(t_count, tstamps))
 
 	# load in the data for the pos graph
 	pxs = []
@@ -113,7 +121,7 @@ def graph_data():
 	# pos grid
 	ax1 = plt.subplot2grid((3,1),(0,0), rowspan=1, colspan=1)
 
-	plt.title("Sentiment Analysis")
+	plt.title("Sentiment Analysis on keywords like: {}".format(title))
 	plt.axis([0.0,max_size, 0.0,1.0])
 	plt.ylabel('Pos')
 	
@@ -132,7 +140,7 @@ def graph_data():
 	# ax2.set_xticklabels(timestamps)
 
 	plt.subplots_adjust(bottom=0.2)
-	plt.xticks(rotation=25)
+	plt.xticks(rotation=35)
 
 
 	# ax=plt.gca()
@@ -153,9 +161,9 @@ def graph_data():
 
 	# small hardfix for the plot range (want to keep 0 a min)
 	if len(total_count) > 0:
-		plt.axis([0.0, max_size, min(total_count)*0.8, max(total_count)*1.1]) #	multiplication is to set a floor and ceiling	
+		plt.axis([0.0, max_size-1, min(total_count)*0.8, max(total_count)*1.1]) #	multiplication is to set a floor and ceiling	
 	else:
-		plt.axis([0.0, max_size, 0.0, 10])
+		plt.axis([0.0, max_size-1, 0.0, 10])
 
 
 	ax3.set_xticklabels(tstamps) #timestamps setting
@@ -298,7 +306,7 @@ def mean_sentiment_worker():
 def mean_into_lst():
 	print('Loading means into lists')
 	while True:
-		if datetime.datetime.now().second == 58 or datetime.datetime.now().second == 28: #NOTE: not sure of this as is... i understand the extra time but might be a better way
+		if datetime.datetime.now().second == 59 or datetime.datetime.now().second == 29: #NOTE: not sure of this as is... i understand the extra time but might be a better way
 			global pos_mean, neg_mean, pos_data_analysis, neg_data_analysis
 			global temp_count, total_count, total_count_mean
 			global timestamps
@@ -342,7 +350,8 @@ def sentiment_worker(thread_name):
 
 			temp_count+=1
 
-
+# if in debug mode checks if queue is empty(issues in the past)
+# otherwise dies immedeatly
 def check_q(): 
 	while DEBUG:
 		global q
@@ -351,28 +360,58 @@ def check_q():
 		time.sleep(1)
 
 
+
+
+title = ''
+
 def main():
+	global title
+	# dedicated to keeping up the data for the stream
 
-	# This section turns loads the threads functions
+	try:
 
-	# q_worker = Thread(target=nlp_worker)
-	q_loader_worker = Thread(target=queue_loader_worker)
-	q_checker = Thread(target=check_q)
-	# mean_print = Thread(target=mean_sentiment_worker)
-	mean2list = Thread(target=mean_into_lst)
-	# add a thread that checks the time adds the data to a 
-	threads = [q_loader_worker, q_checker, mean2list]
+		# code to initialize the twitter stream
+		if len(sys.argv) == 1:
+			print("No keywords were passed exiting program...")
+			time.sleep(3)
+			sys.exit(1) # wont work in a thread use this only in main os.exit(1) might do the job
 
-	for i in range(2):
-		threads.append(Thread(target=sentiment_worker, args=('Sentiment worker #{} starting...'.format(i+1),)))
+		title = sys.argv[1]
+		keylst = list(sys.argv[1:])
 
-	# daemon makes sure that each thread stops if and when the main thread stops
-	for thread in threads:
-		thread.daemon = True
-		thread.start()
+		# give it a second to initialize and start gathering data
+		twitterStream = Thread(target = streamtweets.start_parse, args=(keylst,))
+		twitterStream.daemon = True
+		twitterStream.start()
+		time.sleep(1)
 
-	ani = animation.FuncAnimation(fig, animate, interval=900)
-	plt.show()
+
+
+		# This section turns loads the threads functions
+		# q_worker = Thread(target=nlp_worker)
+		q_loader_worker = Thread(target=queue_loader_worker)
+		q_checker = Thread(target=check_q)
+		# mean_print = Thread(target=mean_sentiment_worker)
+		mean2list = Thread(target=mean_into_lst)
+		# add a thread that checks the time adds the data to a 
+		threads = [q_loader_worker, q_checker, mean2list]
+
+		for i in range(2):
+			threads.append(Thread(target=sentiment_worker, args=('Sentiment worker #{} starting...'.format(i+1),)))
+
+		# daemon makes sure that each thread stops if and when the main thread stops
+		for thread in threads:
+			thread.daemon = True
+			thread.start()
+
+		ani = animation.FuncAnimation(fig, animate, interval=900)
+		plt.show()
+
+
+	# use this later to ensure that data is saved to the db before the data is purged
+	except KeyboardInterrupt:
+		print('Program has been canceled exiting soon...')
+		time.sleep(3)
 
 
 if __name__ == '__main__':

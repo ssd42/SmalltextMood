@@ -99,6 +99,12 @@ def init_stream(key_str):
 	stream.filter(track=key_lst)
 
 
+def start_parse(lst):
+	print("Initializing tweet stream thread...")
+	keywords = list(map(lambda x: x.replace('_', ' '), lst))
+	init_stream(keywords)
+
+
 def parse_keywords():
 	preset = 'Tesla'
 	try:
